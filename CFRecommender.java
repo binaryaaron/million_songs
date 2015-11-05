@@ -15,6 +15,7 @@ import org.apache.commons.csv.CSVParser;
 import org.apache.mahout.cf.taste.impl.common.*;
 import java.util.Map.Entry; 
 import org.apache.mahout.cf.taste.impl.model.GenericUserPreferenceArray; 
+import org.apache.mahout.cf.taste.common.TasteException; 
 
 /**
 *Basic implementation of a collaborative filter recommender. There are a couple of issues to be aware of 
@@ -29,10 +30,11 @@ class CFRecommender {
     private MemoryIDMigrator memConverter = new MemoryIDMigrator(); 
     private UserSimilarity similarity; 
     private UserNeighborhood neighborhood = null; 
-    private Recommender recommender = null; 
+    //  private Recommender recommender = null; 
+    private GenericUserBasedRecommender recommender = null;  
     private int neighborRange = 15; 
       
-    public static void main(String[] args) throws IOException{
+    public static void main(String[] args) throws IOException, TasteException{
 
 	CFRecommender cfr = new CFRecommender(); 
 	dataModel = cfr.createModel();
@@ -41,15 +43,16 @@ class CFRecommender {
     }
     
     //Get a list of recommendations for a specific user. (UNTESTED)  
-    private List<RecommendedItem>  makeRecommendations(Recommender recommender, long user, int n ){
+    private List<RecommendedItem>  makeRecommendations(GenericUserBasedRecommender recommender, long user, int n ) throws TasteException 
+    {
 	List<RecommendedItem> recommendations = recommender.recommend(user, n);
 	return recommendations; 
     }
 
     //Make sure that by passing it as a DataModel and not GenericDataModel that it still works 
-    private void initializeRecommender(DataModel model){
+    private void initializeRecommender(DataModel model) throws TasteException{
 	similarity = new PearsonCorrelationSimilarity(model); 
-	neighborhood = new NearestNUserNeightborhood(neighborRange, similarity, model);
+	neighborhood = new NearestNUserNeighborhood(neighborRange, similarity, model);
 	recommender = new GenericUserBasedRecommender(model, neighborhood, similarity); 
     }
 
