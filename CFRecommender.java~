@@ -48,13 +48,13 @@ class CFRecommender {
 
     //Make sure that by passing it as a DataModel and not GenericDataModel that it still works 
     private void initializeRecommender(DataModel model){
-	similarity = new PearsonCorrelationSimilarity(model); 
-	neighborhood = new NearestNUserNeightborhood(neighborRange, similarity, model);
+	similarity = new PearsoneCorrelationSimilarity(model); 
+	neighborhood = new NearestUserNeightborhood(neighborRange, similarity, model);
 	recommender = new GenericUserBasedRecommender(model, neighborhood, similarity); 
     }
 
     private GenericDataModel createModel() throws FileNotFoundException, IOException{
-	File train_triplets = new File("train_triplets/small_test.csv"); //add your path.
+	File train_triplets = new File("train_triplets/small_test.csv");
 	CSVParser parser = new CSVParser(new InputStreamReader(new FileInputStream(train_triplets))); 
 	Map<Long,List<Preference>> allPrefs = new HashMap<Long, List<Preference>>(); 
 	
