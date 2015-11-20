@@ -16,6 +16,8 @@ import org.apache.mahout.cf.taste.impl.common.*;
 import java.util.Map.Entry; 
 import org.apache.mahout.cf.taste.impl.model.GenericUserPreferenceArray; 
 import org.apache.mahout.cf.taste.common.TasteException; 
+import org.apache.mahout.cf.taste.eval.*; 
+import org.apache.mahout.cf.taste.impl.eval.*;
 
 /**
 *Basic implementation of a collaborative filter recommender. There are a couple of issues to be aware of 
@@ -31,33 +33,79 @@ class CFRecommender {
     private UserSimilarity similarity; 
     private UserNeighborhood neighborhood = null; 
     //  private Recommender recommender = null; 
-    private GenericUserBasedRecommender recommender = null;  
+    private  CachingRecommender recommender = null;  
     private int neighborRange = 15; 
       
-    public static void main(String[] args) throws IOException, TasteException{
+    public static void main(String[] args) throws IOException, TasteException, UnsupportedEncodingException{
 
 	CFRecommender cfr = new CFRecommender(); 
+	PrintWriter writ = new PrintWriter("output.txt", "UTF-8"); 
+	writ.println("is this like not working"); 
 	dataModel = cfr.createModel();
-	cfr.initializeRecommender(dataModel); 
-	//make some recommendations. 
+	//build the caching recommender from the genericuser model. 
+	//cfr.recommender = cfr.initializeRecommender(dataModel);
+	cfr.calculateRSME(dataModel); 
+    }
+
+    /**
+     * Method for trying to calculate the RMSE. 
+     **/
+    private void calculateRSME(DataModel model) throws TasteException, FileNotFoundException, UnsupportedEncodingException{
+	
+       	RecommenderBuilder builder = new RecommenderBuilder(){
+       		public Recommender buildRecommender(DataModel model) throws TasteException{
+	      	    CachingRecommender recommender = initializeRecommender(model); 
+		    return recommender; 
+		}
+        };
+	RecommenderEvaluator rmseEval = new RMSRecommenderEvaluator(); 
+	double rmse = rmseEval.evaluate(builder, null, model, 0.7, 1.0); 
+	System.out.print("rmse is: "); 
+	System.out.println(rmse); 
+	PrintWriter writer = new PrintWriter("output.txt", "UTF-8"); 
+	writer.println("finished at least "); 
+	writer.println(rmse);
+	writer.close(); 
+	
     }
     
-    //Get a list of recommendations for a specific user. (UNTESTED)  
+
+    /**
+     *Get a list of recommendations for a specific user. (UNTESTED)  
+     **/
     private List<RecommendedItem>  makeRecommendations(GenericUserBasedRecommender recommender, long user, int n ) throws TasteException 
     {
 	List<RecommendedItem> recommendations = recommender.recommend(user, n);
 	return recommendations; 
     }
-
-    //Make sure that by passing it as a DataModel and not GenericDataModel that it still works 
-    private void initializeRecommender(DataModel model) throws TasteException{
-	similarity = new PearsonCorrelationSimilarity(model); 
-	neighborhood = new NearestNUserNeighborhood(neighborRange, similarity, model);
-	recommender = new GenericUserBasedRecommender(model, neighborhood, similarity); 
+    
+    //Little debugging method. 
+    private void printSimilarities(UserSimilarity pSim) throws TasteException{
+		//	System.out.println(pSim.userSimilarity(5582627969861115877,2427962755229849655)); 
+	//System.out.println(pSim.userSimilarity(5582627969861115877,9214985604270756226)); 
+	//	System.out.println(pSim.userSimilarity(1,2)); 
     }
 
+    /**Make sure that by passing it as a DataModel and not GenericDataModel that it still works, Maybe try to get this working better with different kinds of correlations.  
+     *
+     **/
+    private CachingRecommender initializeRecommender(DataModel model) throws TasteException{
+	similarity = new PearsonCorrelationSimilarity(model); 
+	
+	//Printing a few similarities just to see what they look like. 
+	printSimilarities(similarity); 
+	
+	neighborhood = new NearestNUserNeighborhood(neighborRange, similarity, model);
+	GenericUserBasedRecommender gr = new GenericUserBasedRecommender(model, neighborhood, similarity);
+	return new CachingRecommender(gr); 
+    }
+
+    /**
+     *Creates the dataModel for the recommendation system. 
+     *
+     **/
     private GenericDataModel createModel() throws FileNotFoundException, IOException{
-	File train_triplets = new File("train_triplets/small_test.csv"); //add your path.
+	File train_triplets = new File("EvalDataYear1MSDWebsite/training.csv"); //add your path.
 	CSVParser parser = new CSVParser(new InputStreamReader(new FileInputStream(train_triplets))); 
 	Map<Long,List<Preference>> allPrefs = new HashMap<Long, List<Preference>>(); 
 	
@@ -71,6 +119,9 @@ class CFRecommender {
 	    long userLong = memConverter.toLongID(userID); //Coming out negative alot ? 
 	    long songLong = memConverter.toLongID(songID); 
 	    
+	    //Print out the userLong just to see what they are. 
+	    System.out.println(userLong); 
+
 	    List<Preference> userPrefs; 
       	    if((userPrefs = allPrefs.get(userLong)) == null){
 	    	userPrefs = new ArrayList<Preference>();  
