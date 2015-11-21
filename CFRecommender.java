@@ -18,6 +18,7 @@ import org.apache.mahout.cf.taste.impl.model.GenericUserPreferenceArray;
 import org.apache.mahout.cf.taste.common.TasteException; 
 import org.apache.mahout.cf.taste.eval.*; 
 import org.apache.mahout.cf.taste.impl.eval.*;
+import org.apache.mahout.common.RandomUtils; 
 
 /**
 *Basic implementation of a collaborative filter recommender. There are a couple of issues to be aware of 
@@ -42,6 +43,7 @@ class CFRecommender {
 	PrintWriter writ = new PrintWriter("output.txt", "UTF-8"); 
 	writ.println("is this like not working"); 
 	dataModel = cfr.createModel();
+	System.out.println("model has been created"); 
 	//build the caching recommender from the genericuser model. 
 	//cfr.recommender = cfr.initializeRecommender(dataModel);
 	cfr.calculateRSME(dataModel); 
@@ -52,6 +54,7 @@ class CFRecommender {
      **/
     private void calculateRSME(DataModel model) throws TasteException, FileNotFoundException, UnsupportedEncodingException{
 	
+	RandomUtils.useTestSeed(); 
        	RecommenderBuilder builder = new RecommenderBuilder(){
        		public Recommender buildRecommender(DataModel model) throws TasteException{
 	      	    CachingRecommender recommender = initializeRecommender(model); 
@@ -105,7 +108,7 @@ class CFRecommender {
      *
      **/
     private GenericDataModel createModel() throws FileNotFoundException, IOException{
-	File train_triplets = new File("EvalDataYear1MSDWebsite/training.csv"); //add your path.
+	File train_triplets = new File("training.csv"); //add your path.
 	CSVParser parser = new CSVParser(new InputStreamReader(new FileInputStream(train_triplets))); 
 	Map<Long,List<Preference>> allPrefs = new HashMap<Long, List<Preference>>(); 
 	
@@ -120,7 +123,7 @@ class CFRecommender {
 	    long songLong = memConverter.toLongID(songID); 
 	    
 	    //Print out the userLong just to see what they are. 
-	    System.out.println(userLong); 
+	    //	    System.out.println(userLong); 
 
 	    List<Preference> userPrefs; 
       	    if((userPrefs = allPrefs.get(userLong)) == null){
