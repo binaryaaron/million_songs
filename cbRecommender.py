@@ -65,6 +65,17 @@ def getSimilarArtistsSet(track):
     sim_ids = map(lambda r: similars.value[r], sims) + [artist_id]
     return set(sim_ids)
 
+def jaccardSimilarity(setA, setB):
+    i = len(setA.intersection(setB))
+    u = len(setA.union(setB))
+    return i/u
+
+# Note, the elements of tags must be distinct from the elements of
+# artists this works now because artists is a set of strings and tags
+# is a set of integers.
+def combineSets((tags, artists)):
+    return tags.union(artists)
+
 def printUsage():
     print("""
     cbRecommender.py <full/path/to/artist_similarity.db>
@@ -88,10 +99,16 @@ if __name__ == '__main__':
     completeDF = trackDF.join(artistIDs, trackDF.track_id == artistIDs.track_id)
     # register the data as a temporary SQL table
     # this will be useful for creating user features later. (I think)
-    #sqlContext.registerDataFrameAsTable(completeDF, songTable)
+    sqlContext.registerDataFrameAsTable(completeDF, songTable)
+
+    # cache the complete dataframe since we will be accessing it twice
+    completeDF.cache()
 
     tagSets    = completeDF.map(getTagSet)
     artistSets = completeDF.map(getSimilarArtistsSet)
+
+    # create and RDD with all track features.
+    trackFeatures = tagSets.zip(artistSets).map(combineSets).cache()
     # TODO:
     # 1. function that takes a user and constructs a feature set (ie. tag set)
     #    from their top N songs (or all songs with a normalized play count above
