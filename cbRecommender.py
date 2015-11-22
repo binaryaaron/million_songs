@@ -73,7 +73,7 @@ if __name__ == '__main__':
     
     #subsetDF = sqlContext.jsonFile(subsetJSON)
     #trainDF  = sqlContext.jsonFile(trainJSON)
-    trackDF   = sqlContext.jsonFile(fullJSON).cache()
+    trackDF   = sqlContext.jsonFile(fullJSON)
     completeDF = trackDF.join(artistIDs, trackDF.track_id == artistIDs.track_id)
     # register the data as a temporary SQL table
     # this will be useful for creating user features later. (I think)
@@ -88,7 +88,8 @@ if __name__ == '__main__':
     #    a. read in the triplets as a pandas DataFrame
     # 2. function that finds the most similar songs to a given song vector
     
-    # save the sets so we can use them again...
+    # save the sets so we can use them again...  also just as a test
+    # to make sure that everything works correctly
     tagsFile = 'hdfs:///users/wfvining/challenge2/tagSets.rdd'
     tagSets.saveAsTextFile(tagsFile)
     artistsFile = 'hdfs:///users/wfvining/challenge2/artistSets.rdd'
