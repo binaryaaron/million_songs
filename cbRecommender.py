@@ -5,18 +5,23 @@ import sqlite3
 import pandas as pd
 from sqlalchemy import create_engine
 
+import sys
+
+if sys.argc < 4:
+    printUsage()
+    exit()
+
 ######### Global variabls ######### (gross)
 # The following variables are broadcast to the spark
 # cluster and can be used in the functions below
 songTable = 'song_data'
-#sc = SparkContext('local[*]', 'lastfm_recommender')
+sc = SparkContext('local[*]', 'lastfm_recommender')
 sqlContext = SQLContext(sc)
 
 ### Set up database connections for metadata and similar artists
 ### This is starting to get really ugly.
 ### broadcasting this data is probably not a good idea
-artist_engine = create_engine(
-    'sqlite:////users/wfvining/challenge2/artist_similarity.db')
+artist_engine = create_engine('sqlite:///'+sys.argv[1])
 sims = pd.read_sql_query(
     'SELECT * FROM similarity', artist_engine)
 # broadcsasting these variables is probably a bad idea since 
@@ -60,13 +65,19 @@ def getSimilarArtistsSet(track):
     sim_ids = map(lambda r: similars.value[r], sims) + [artist_id]
     return set(sim_ids)
 
-if __name__ == '__main__':    
+def printUsage():
+    print("""
+    cbRecommender.py <full/path/to/artist_similarity.db>
+                     <path/to/lastfmJSON/in/hdfs (no hdfs://)>
+                     <path/to/track_metadata.db>
+    """)
+
+if __name__ == '__main__':
     #subsetJSON = 'hdfs:///users/wfvining/challenge2/lastfm_subset_all.json'
     #trainJSON  = 'hdfs:///users/wfvining/challenge2/lastfm_train_all.json'
-    fullJSON   = 'hdfs:///users/wfvining/challenge2/lastfm_full.json'
+    fullJSON   = 'hdfs://' + sys.argv[2]
 
-    metadata_engine = create_engine(
-        'sqlite:////users/wfvining/challenge2/track_metadata.db')
+    metadata_engine = create_engine('sqlite:///'+sys.argv[3])
     artistIDs = sqlContext.createDataFrame(
         pd.read_sql_query('SELECT track_id, artist_id FROM songs',
                           metadata_engine))
@@ -90,8 +101,8 @@ if __name__ == '__main__':
     
     # save the sets so we can use them again...  also just as a test
     # to make sure that everything works correctly
-    tagsFile = 'hdfs:///users/wfvining/challenge2/tagSets.rdd'
-    tagSets.saveAsTextFile(tagsFile)
-    artistsFile = 'hdfs:///users/wfvining/challenge2/artistSets.rdd'
-    artistSets.saveAsTextFile(artistsFile)
+    #tagsFile = 'hdfs:///users/wfvining/challenge2/tagSets.rdd'
+    #tagSets.saveAsTextFile(tagsFile)
+    #artistsFile = 'hdfs:///users/wfvining/challenge2/artistSets.rdd'
+    #artistSets.saveAsTextFile(artistsFile)
 
