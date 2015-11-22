@@ -1,11 +1,28 @@
 from pyspark.context import SparkContext
 from pyspark.sql import SQLContext
 
-# some things that will be useful globally
+import sqlite3
+import pandas as pd
+from sqlalchemy import create_engine
+
+######### Global variabls ######### (gross)
+# The following variables are broadcast to the spark
+# cluster and can be used in the functions below
 songTable = 'song_data'
-sc = SparkContext('local[*]', 'lastfm_recommender')
+#sc = SparkContext('local[*]', 'lastfm_recommender')
 sqlContext = SQLContext(sc)
 
+### Set up database connections for metadata and similar artists
+### This is starting to get really ugly.
+### broadcasting this data is probably not a good idea
+artist_engine = create_engine(
+    'sqlite:////users/wfvining/challenge2/artist_similarity.db')
+sims = pd.read_sql_query(
+    'SELECT * FROM similarity', artist_engine)
+# broadcsasting these variables is probably a bad idea since 
+# they ar quite big
+similars = sc.broadcast(sims.similar)
+similar_groups = sc.broadcast(sims.groupby('target').groups)
 
 def makeTagDictionary(tagStrings):
     tags = [tagstr[0] for tagstr in map(lambda ts: ts.split('\t'), tagStrings) 
@@ -16,6 +33,8 @@ tagFile = open('lastfm_unique_tags.txt', 'r')
 # make tag dictionary available across the cluster.
 tagDictionary = sc.broadcast(makeTagDictionary(tagFile.readlines()))
 tagFile.close()
+
+######## Functions for feature extraction #########
 
 # make a "vector" with indices corresoinding to values in 
 # tagDictionary
@@ -29,79 +48,39 @@ def getTagSet(track):
     return {tagDictionary.value[tag] for [tag, f] in track.tags
             if tag in tagDictionary.value}
 
-# TODO
-def makeSimilarsVector(track):
-    raise Exception("undefined")
-
-# Probably don't want to include the artist... unless we maybe break it
-# up into a bag of words to account for artists such as "Foo with Bar"
-# where Foo and Bar collaborated on some album... 
-def makeArtistVector(track):
-    raise Exception("undefined")
+def getArtistID(track):
+    return track.artist_id
 
 # use the similar artists db to make a similar artists vector
-"""
-In [1]: import sqlite3
-
-In [2]: import pandas as pd
-
-In [3]: from sqlalchemy import create_engine
-
-In [4]: artists_engine = create_engine('sqlite:////users/wfvining/challenge2/artist_similarity.db')
-
-In [5]: artists_engine
-Out[5]: Engine(sqlite:////users/wfvining/challenge2/artist_similarity.db)
-
-In [6]: pd.read_sql_query('SELECT * FROM sqlite_master WHERE type="table"', artists_engine)
-Out[6]: 
-    type        name    tbl_name  rootpage  \
-0  table     artists     artists         2   
-1  table  similarity  similarity      2459   
-
-                                                 sql  
-0  CREATE TABLE artists (artist_id text PRIMARY KEY)  
-1  CREATE TABLE similarity (target text, similar ...  
-
-In [9]: artists = pd.read_sql_query('SELECT * from artists', artists_engine)
-
-In [10]: artists.head()
-Out[10]: 
-            artist_id
-0  AR002UA1187B9A637D
-1  AR003FB1187B994355
-2  AR006821187FB5192B
-3  AR009211187B989185
-4  AR009SZ1187B9A73F4
-
-In [11]: sims = pd.read_sql_query('SELECT * from similarity', artists_engine)
-
-In [12]: sims.head()
-Out[12]: 
-               target             similar
-0  AR002UA1187B9A637D  ARQDOR81187FB3B06C
-1  AR002UA1187B9A637D  AROHMXJ1187B989023
-2  AR002UA1187B9A637D  ARAGWVR1187B9B749B
-3  AR002UA1187B9A637D  AREQVWS1241B9CC0A4
-4  AR002UA1187B9A637D  ARHBE351187FB3B0CD
-"""
-def getSimilarArtists(track):
-    raise Exception("undefined")
+# the set this returns is not integers, it is the actual artist_ids.
+def getSimilarArtistsSet(track):
+    artist_id = getArtistID(track)
+    # if no similars are defined then return an empty list
+    sims = similar_groups.value.get(artist_id, [])
+    sim_ids = map(lambda r: similars.value[r], sims) + [artist_id]
+    return set(sim_ids)
 
 if __name__ == '__main__':    
     #subsetJSON = 'hdfs:///users/wfvining/challenge2/lastfm_subset_all.json'
     #trainJSON  = 'hdfs:///users/wfvining/challenge2/lastfm_train_all.json'
     fullJSON   = 'hdfs:///users/wfvining/challenge2/lastfm_full.json'
+
+    metadata_engine = create_engine(
+        'sqlite:////users/wfvining/challenge2/track_metadata.db')
+    artistIDs = sqlContext.createDataFrame(
+        pd.read_sql_query('SELECT track_id, artist_id FROM songs',
+                          metadata_engine))
     
     #subsetDF = sqlContext.jsonFile(subsetJSON)
     #trainDF  = sqlContext.jsonFile(trainJSON)
-    fullDF   = sqlContext.jsonFile(fullJSON).cache()
-
+    trackDF   = sqlContext.jsonFile(fullJSON).cache()
+    completeDF = trackDF.join(artistIDs, trackDF.track_id == artistIDs.track_id)
     # register the data as a temporary SQL table
-    # this will be useful for creating user features later.
-    sqlContext.registerDataFrameAsTable(fullDF, songTable)
+    # this will be useful for creating user features later. (I think)
+    #sqlContext.registerDataFrameAsTable(completeDF, songTable)
 
-    tagSets = fullDF.rdd.map(getTagSet)
-
+    tagSets    = completeDF.map(getTagSet)
+    artistSets = completeDF.map(getSimilarArtistsSet)
     # TODO:
     # 1. function that takes a user and constructs a feature set (ie. tag set)
     #    from their top N songs (or all songs with a normalized play count above
@@ -110,6 +89,8 @@ if __name__ == '__main__':
     # 2. function that finds the most similar songs to a given song vector
     
     # save the sets so we can use them again...
-    # outputFile = 'tagSets.rdd'
-    # tagSets.saveAsTextFile(outputFile)
+    tagsFile = 'hdfs:///users/wfvining/challenge2/tagSets.rdd'
+    tagSets.saveAsTextFile(tagsFile)
+    artistsFile = 'hdfs:///users/wfvining/challenge2/artistSets.rdd'
+    artistSets.saveAsTextFile(artistsFile)
 
