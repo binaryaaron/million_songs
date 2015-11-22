@@ -7,7 +7,7 @@ from sqlalchemy import create_engine
 
 import sys
 
-if sys.argc < 4:
+if len(sys.argv) < 4:
     printUsage()
     exit()
 
