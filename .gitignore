@@ -2,6 +2,12 @@
 __pycache__/
 *.py[cod]
 
+# Java class files
+*.class
+
+#Emacs autosaves
+*.*~
+
 # C extensions
 *.so
 
