@@ -135,7 +135,7 @@ class CFRecommender {
 
 	FastByIDMap<PreferenceArray> fastPrefMap = new FastByIDMap<PreferenceArray>(); 
 	for(Entry<Long, List<Preference>> entry : allPrefs.entrySet()){
-            normailzePrefArray(entry.getValue());
+            convertToPercentages(entry.getValue());
             fastPrefMap.put(entry.getKey(), new GenericUserPreferenceArray(entry.getValue())); 
 	}
 	return new GenericDataModel(fastPrefMap);   
@@ -146,7 +146,7 @@ class CFRecommender {
      * Reduces the preferences to values that fall in the range of [0,1] by
      * dividing the value by the sum of all values in the array.
      */
-    private void normalizePrefArray(List<Preference>> prefs) {
+    private void convertToPercentages(List<Preference>> prefs) {
         float sum = 0;
         for (Preference p : prefs) {
             sum += p.getValue();
