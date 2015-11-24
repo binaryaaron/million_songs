@@ -56,8 +56,8 @@ def getTagVector(track):
 # we can use sets
 def getTagSet(track):
     return {'track_id':track.track_id,
-            'track_tags':{tag for [tag, f] in track.tags
-                          if tag in tagDictionary.value}}
+            'track_tags':[tag for [tag, f] in track.tags
+                          if tag in tagDictionary.value]}
 
 def getArtistID(track):
     return track.artist_id
@@ -70,7 +70,7 @@ def getSimilarArtistsSet(track):
     sims = similar_groups.value.get(artist_id, [])
     sim_ids = map(lambda r: similars.value[r], sims) + [artist_id]
     return {'track_id':track.track_id,
-            'similar_artists':set(sim_ids)}
+            'similar_artists':list(set(sim_ids))}
 
 def jaccardSimilarity(setA, setB):
     i = len(setA.intersection(setB))
