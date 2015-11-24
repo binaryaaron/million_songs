@@ -12,9 +12,10 @@ def printUsage():
     cbRecommender.py <full/path/to/artist_similarity.db>
                      <path/to/lastfmJSON/in/hdfs (no hdfs://)>
                      <path/to/track_metadata.db>
+                     <path/to/echonest_analysis_data.csv>
     """)
 
-if len(sys.argv) < 4:
+if len(sys.argv) < 5:
     printUsage()
     exit()
 
@@ -101,6 +102,10 @@ if __name__ == '__main__':
     # create and RDD with all track features.
     trackFeatures = tagSets.join(artistSets,
                                  tagSets.track_id == artistSets.track_id)
+
+    echoNest = sqlContext.createDataFrame(pd.read_csv(sys.args[4]))
+    allFeatures = trackFeatures.join(echoNest,
+                                     allFeatures.track_id == echoNest.track_id)
     # TODO:
     # 1. function that takes a user and constructs a feature set (ie. tag set)
     #    from their top N songs (or all songs with a normalized play count above
