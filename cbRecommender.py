@@ -29,14 +29,11 @@ sims = pd.read_sql_query(
 similars = sc.broadcast(sims.similar)
 similar_groups = sc.broadcast(sims.groupby('target').groups)
 
-def makeTagDictionary(tagStrings):
-    tags = [tagstr[0] for tagstr in map(lambda ts: ts.split('\t'), tagStrings) 
-            if int(tagstr[1]) > 1]
-    return dict(zip(tags, range(0, len(tags)-1)))
-
 tagFile = open('lastfm_unique_tags.txt', 'r')
 # make tag dictionary available across the cluster.
-tagDictionary = sc.broadcast(makeTagDictionary(tagFile.readlines()))
+tags = [tagstr[0] for tagstr in map(lambda ts: ts.split('\t'),
+                                    [next(tagFile) for x in xrange(500)]]
+tagDictionary = sc.broadcast(tags)
 tagFile.close()
 
 ######## Functions for feature extraction #########
@@ -50,8 +47,9 @@ def getTagVector(track):
 # Actually... it isn't really necessary to represent the tags as a vector...
 # we can use sets
 def getTagSet(track):
-    return {tagDictionary.value[tag] for [tag, f] in track.tags
-            if tag in tagDictionary.value}
+    return {'track_id':track.track_id,
+            'track_tags':{tag for [tag, f] in track.tags
+                          if tag in tagDictionary.value}}
 
 def getArtistID(track):
     return track.artist_id
@@ -63,7 +61,8 @@ def getSimilarArtistsSet(track):
     # if no similars are defined then return an empty list
     sims = similar_groups.value.get(artist_id, [])
     sim_ids = map(lambda r: similars.value[r], sims) + [artist_id]
-    return set(sim_ids)
+    return {'track_id':track.track_id,
+            'similar_artists':set(sim_ids)}
 
 def jaccardSimilarity(setA, setB):
     i = len(setA.intersection(setB))
@@ -84,8 +83,6 @@ def printUsage():
     """)
 
 if __name__ == '__main__':
-    #subsetJSON = 'hdfs:///users/wfvining/challenge2/lastfm_subset_all.json'
-    #trainJSON  = 'hdfs:///users/wfvining/challenge2/lastfm_train_all.json'
     fullJSON   = 'hdfs://' + sys.argv[2]
 
     metadata_engine = create_engine('sqlite:///'+sys.argv[3])
@@ -93,22 +90,17 @@ if __name__ == '__main__':
         pd.read_sql_query('SELECT track_id, artist_id FROM songs',
                           metadata_engine))
     
-    #subsetDF = sqlContext.jsonFile(subsetJSON)
-    #trainDF  = sqlContext.jsonFile(trainJSON)
     trackDF   = sqlContext.jsonFile(fullJSON)
     completeDF = trackDF.join(artistIDs, trackDF.track_id == artistIDs.track_id)
-    # register the data as a temporary SQL table
-    # this will be useful for creating user features later. (I think)
-    sqlContext.registerDataFrameAsTable(completeDF, songTable)
-
     # cache the complete dataframe since we will be accessing it twice
     completeDF.cache()
 
-    tagSets    = completeDF.map(getTagSet)
-    artistSets = completeDF.map(getSimilarArtistsSet)
+    tagSets    = sqlContext.createDataFrame(completeDF.map(getTagSet))
+    artistSets = sqlContext.createDataFrame(completeDF.map(getSimilarArtistsSet))
 
     # create and RDD with all track features.
-    trackFeatures = tagSets.zip(artistSets).map(combineSets).cache()
+    trackFeatures = tagSets.join(artistSets,
+                                 tagSets.track_id == artistSets.track_id)
     # TODO:
     # 1. function that takes a user and constructs a feature set (ie. tag set)
     #    from their top N songs (or all songs with a normalized play count above
