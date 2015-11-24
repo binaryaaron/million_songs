@@ -7,6 +7,13 @@ from sqlalchemy import create_engine
 
 import sys
 
+def printUsage():
+    print("""
+    cbRecommender.py <full/path/to/artist_similarity.db>
+                     <path/to/lastfmJSON/in/hdfs (no hdfs://)>
+                     <path/to/track_metadata.db>
+    """)
+
 if len(sys.argv) < 4:
     printUsage()
     exit()
@@ -32,7 +39,7 @@ similar_groups = sc.broadcast(sims.groupby('target').groups)
 tagFile = open('lastfm_unique_tags.txt', 'r')
 # make tag dictionary available across the cluster.
 tags = [tagstr[0] for tagstr in map(lambda ts: ts.split('\t'),
-                                    [next(tagFile) for x in xrange(500)]]
+                                    [next(tagFile) for x in xrange(500)])]
 tagDictionary = sc.broadcast(tags)
 tagFile.close()
 
@@ -74,13 +81,6 @@ def jaccardSimilarity(setA, setB):
 # is a set of integers.
 def combineSets((tags, artists)):
     return tags.union(artists)
-
-def printUsage():
-    print("""
-    cbRecommender.py <full/path/to/artist_similarity.db>
-                     <path/to/lastfmJSON/in/hdfs (no hdfs://)>
-                     <path/to/track_metadata.db>
-    """)
 
 if __name__ == '__main__':
     fullJSON   = 'hdfs://' + sys.argv[2]
