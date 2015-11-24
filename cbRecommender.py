@@ -80,7 +80,7 @@ def jaccardSimilarity(setA, setB):
 # Note, the elements of tags must be distinct from the elements of
 # artists this works now because artists is a set of strings and tags
 # is a set of integers.
-def combineSets((tags, artists)):
+def combineSets(tags, artists):
     return tags.union(artists)
 
 if __name__ == '__main__':
