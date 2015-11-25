@@ -93,11 +93,8 @@ class CFRecommender {
      *
      **/
     private CachingRecommender initializeRecommender(DataModel model) throws TasteException{
-	similarity = new PearsonCorrelationSimilarity(model); 
-	
-	//Printing a few similarities just to see what they look like. 
-	printSimilarities(similarity); 
-	
+	//similarity = new PearsonCorrelationSimilarity(model); 
+	similarity = new SpearmanCorrelationSimilarity(model); 
 	neighborhood = new NearestNUserNeighborhood(neighborRange, similarity, model);
 	GenericUserBasedRecommender gr = new GenericUserBasedRecommender(model, neighborhood, similarity);
 	return new CachingRecommender(gr); 
