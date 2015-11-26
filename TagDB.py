@@ -41,7 +41,9 @@ class TagDB:
 
     def getTagVector(self, track_ids):
         """returns a list of integers representing the indices of the tags
-        that are present.
+        that are present. Vectors are one-indexed, and all entries are
+        in the range [1:500].
+
         """
         tagSet = list(self.getTagSet(track_ids))
         tagVector = [self.tagIndex[tag] for tag in tagSet]
