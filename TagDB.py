@@ -35,7 +35,7 @@ class TagDB:
         if type(track_ids) is not list: track_ids = [track_ids]
         tags = set()
         for tid in track_ids:
-            track_tags = set(self.tagDict[tid])
+            track_tags = set(self.tagDict.get(tid, []))
             tags = tags.union(track_tags)
         return tags
 
