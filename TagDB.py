@@ -41,7 +41,7 @@ class TagDB:
 
     def getTagVector(self, track_ids):
         """returns a list of integers representing the indices of the tags
-        that are present. Vectors are one-indexed, and all entries are
+        that are present. Vectors are zero-indexed, and all entries are
         in the range [1:500].
 
         """
@@ -53,7 +53,7 @@ class TagDB:
 def getTopTags(dataPath):
     lastfm_tags = open(dataPath + '/lastfm_unique_tags.txt', 'r')
     tagIndex = {}
-    for tagRank in range(1, 500):
+    for tagRank in range(500):
         [tag, f] = lastfm_tags.readline().split('\t')
         tagIndex[tag] = tagRank
     lastfm_tags.close()
