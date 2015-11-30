@@ -37,8 +37,9 @@ class SimilarDB:
         return all_similars
 
 def makeSimilarsSet(similarsStrings):
-    similars = set()
-    for simstr in similarsStrings:
-        sims_list = simstr.split(',')[0::2]
-        similars = similars.union(set(sims_list))
-    return similars
+    if len(similarsStrings) > 1:
+        print("not going to work")
+    sims_list = similarsStrings[0].split(',')[0::2]
+    l = len(sims_list)
+    top_sims = sims_list[0:int(l/2)]
+    return set(top_sims)
